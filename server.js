@@ -1,17 +1,21 @@
-
 const express = require('express');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Parse JSON bodies
+// Parse JSON bodies from requests
 app.use(express.json());
 
-// Serve static files from /public
+// Serve static files from the "public" folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory storage (temporary, resets each deploy)
+// Route for root ("/") to serve index.html
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// In-memory database (resets each time server restarts)
 const db = {
   bookings: [],
   consultations: [],
@@ -19,7 +23,7 @@ const db = {
   tests: []
 };
 
-// API routes
+// API for bookings
 app.post('/api/bookings', (req, res) => {
   const { name, phone, email = null, dateTime, serviceType, notes = null } = req.body;
   if (!name || !phone || !dateTime || !serviceType) {
@@ -31,6 +35,7 @@ app.post('/api/bookings', (req, res) => {
   res.json({ success: true, id, createdAt });
 });
 
+// API for consultations
 app.post('/api/consultations', (req, res) => {
   const { name, phone, email = null, mode, preferredTime = null, notes = null } = req.body;
   if (!name || !phone || !mode) {
@@ -42,6 +47,7 @@ app.post('/api/consultations', (req, res) => {
   res.json({ success: true, id, createdAt });
 });
 
+// API for deliveries
 app.post('/api/deliveries', (req, res) => {
   const { name, phone, address, items, notes = null } = req.body;
   if (!name || !phone || !address || !items) {
@@ -53,6 +59,7 @@ app.post('/api/deliveries', (req, res) => {
   res.json({ success: true, id, createdAt });
 });
 
+// API for tests
 app.post('/api/tests', (req, res) => {
   const { name, phone, email = null, testType, preferredDate = null, notes = null } = req.body;
   if (!name || !phone || !testType) {
@@ -64,7 +71,7 @@ app.post('/api/tests', (req, res) => {
   res.json({ success: true, id, createdAt });
 });
 
-// Admin view
+// Admin route
 const ADMIN_KEY = process.env.ADMIN_KEY || 'changeme';
 app.get('/admin', (req, res) => {
   if (req.query.key !== ADMIN_KEY) {
@@ -73,14 +80,11 @@ app.get('/admin', (req, res) => {
   res.send(`<pre>${JSON.stringify(db, null, 2)}</pre>`);
 });
 
-// Fallback route for SPA — serves index.html for any unknown route
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
+// Start server
 app.listen(PORT, () => {
   console.log(`✅ Zencuro server running on port ${PORT}`);
 });
+
 
 
 
