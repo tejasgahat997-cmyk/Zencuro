@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: zencuro
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    envVars:
+      - key: ADMIN_PASS
+        value: Tejas@123
+        
