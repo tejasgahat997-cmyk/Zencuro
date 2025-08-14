@@ -1,39 +1,31 @@
 const express = require('express');
-const path = require('path');
 const bodyParser = require('body-parser');
-
+const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Booking route
 app.post('/book', (req, res) => {
-    console.log('Booking data:', req.body);
-    res.json({ message: 'Booking received successfully!', data: req.body });
+  console.log('Booking received:', req.body);
+  res.json({ success: true, message: 'Booking submitted successfully!' });
 });
 
-// Consultation route
 app.post('/consultation', (req, res) => {
-    console.log('Consultation request:', req.body);
-    res.json({ message: 'Consultation request received!', data: req.body });
+  console.log('Consultation request received:', req.body);
+  res.json({ success: true, message: 'Consultation request submitted!' });
 });
 
-// Delivery route
 app.post('/delivery', (req, res) => {
-    console.log('Delivery order:', req.body);
-    res.json({ message: 'Delivery order received!', data: req.body });
+  console.log('Delivery request received:', req.body);
+  res.json({ success: true, message: 'Delivery request submitted!' });
 });
 
-// Test booking route
 app.post('/test', (req, res) => {
-    console.log('Test booking:', req.body);
-    res.json({ message: 'Test booking received!', data: req.body });
+  console.log('Lab test booking received:', req.body);
+  res.json({ success: true, message: 'Lab test booking submitted!' });
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
