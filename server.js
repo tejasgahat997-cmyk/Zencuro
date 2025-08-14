@@ -1,21 +1,17 @@
+
 const express = require('express');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Parse JSON bodies from fetch() calls
+// Parse JSON bodies
 app.use(express.json());
 
-// Serve static files from /public folder
+// Serve static files from /public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Load index.html on root path
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// ------- Simple in-memory storage (resets on each deploy) -------
+// In-memory storage (temporary, resets each deploy)
 const db = {
   bookings: [],
   consultations: [],
@@ -23,7 +19,7 @@ const db = {
   tests: []
 };
 
-// ------- APIs -------
+// API routes
 app.post('/api/bookings', (req, res) => {
   const { name, phone, email = null, dateTime, serviceType, notes = null } = req.body;
   if (!name || !phone || !dateTime || !serviceType) {
@@ -68,17 +64,23 @@ app.post('/api/tests', (req, res) => {
   res.json({ success: true, id, createdAt });
 });
 
-// (Optional) Admin viewer
+// Admin view
 const ADMIN_KEY = process.env.ADMIN_KEY || 'changeme';
 app.get('/admin', (req, res) => {
-  if (req.query.key !== ADMIN_KEY) return res.status(401).send('Unauthorized');
+  if (req.query.key !== ADMIN_KEY) {
+    return res.status(401).send('Unauthorized');
+  }
   res.send(`<pre>${JSON.stringify(db, null, 2)}</pre>`);
+});
+
+// Fallback route for SPA — serves index.html for any unknown route
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
   console.log(`✅ Zencuro server running on port ${PORT}`);
 });
-
 
 
 
