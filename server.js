@@ -15,6 +15,11 @@ app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Routes for frontend pages (so they don’t give 404)
+app.get(['/booking', '/consultation', '/medicines', '/tests'], (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // In-memory database (resets each time server restarts)
 const db = {
   bookings: [],
@@ -84,6 +89,7 @@ app.get('/admin', (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Zencuro server running on port ${PORT}`);
 });
+
 
 
 
