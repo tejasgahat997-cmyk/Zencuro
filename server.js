@@ -40,7 +40,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // --- Simple health check ---
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// --- Serve index.html for these frontend routes, too ---
+// --- Serve index.html for frontend routes ---
 app.get(['/', '/booking', '/consultation', '/medicines', '/tests', '/call', '/doctor'], (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -126,7 +126,7 @@ app.get('/prescription/:patientId', (req, res) => {
 // --- Pharmacies ---
 app.get('/pharmacies', (_req, res) => res.json(pharmacies));
 
-// --- Stripe Checkout: start order & pay ---
+// --- Stripe Checkout ---
 app.post('/order', async (req, res) => {
   const { patientId, pharmacyId, prescription } = req.body;
   if (!stripe) return res.status(500).json({ success: false, message: 'Stripe not configured' });
@@ -160,10 +160,9 @@ app.post('/order', async (req, res) => {
   }
 });
 
-// --- After successful payment: create delivery + tracking button ---
+// --- After successful payment: delivery + tracking ---
 app.get('/payment-success', (req, res) => {
   const orderId = (req.query.orderId || Date.now()).toString();
-  // create delivery with initial location (simulate; Delhi coords)
   deliveries[orderId] = {
     status: 'Assigned to delivery agent',
     location: { lat: 28.6139, lng: 77.2090 }
@@ -176,7 +175,7 @@ app.get('/payment-success', (req, res) => {
   `);
 });
 
-// --- Real-time tracking page with Google Maps (simulated movement) ---
+// --- Real-time tracking page with Google Maps ---
 app.get('/track/:orderId', (req, res) => {
   const { orderId } = req.params;
   const delivery = deliveries[orderId];
@@ -225,16 +224,42 @@ app.get('/admin', (req, res) => {
 
 // --- Socket.io: WebRTC signaling, chat, delivery rooms ---
 io.on('connection', (socket) => {
-  // WebRTC signaling relay
-  socket.on('offer', (data) => socket.broadcast.emit('offer', data));
-  socket.on('answer', (data) => socket.broadcast.emit('answer', data));
-  socket.on('candidate', (data) => socket.broadcast.emit('candidate', data));
+  console.log("🔗 User connected:", socket.id);
+
+  // WebRTC signaling
+  socket.on("join", ({ room, role }) => {
+    socket.join(room);
+    console.log(`✅ ${role} joined room: ${room}`);
+    socket.to(room).emit("chat", {
+      message: `${role} joined the room`,
+      name: "System",
+      ts: Date.now(),
+    });
+  });
+
+  socket.on("offer", ({ room, sdp }) => {
+    socket.to(room).emit("offer", { from: socket.id, sdp });
+  });
+
+  socket.on("answer", ({ room, sdp }) => {
+    socket.to(room).emit("answer", { from: socket.id, sdp });
+  });
+
+  socket.on("ice-candidate", ({ room, candidate }) => {
+    socket.to(room).emit("ice-candidate", { from: socket.id, candidate });
+  });
 
   // chat
-  socket.on('chatMessage', (msg) => io.emit('chatMessage', msg));
+  socket.on("chat", ({ room, message, name, ts }) => {
+    io.to(room).emit("chat", { message, name, ts });
+  });
 
-  // delivery tracking rooms
+  // delivery tracking
   socket.on('join-delivery', (orderId) => socket.join(orderId));
+
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
+  });
 });
 
 // --- Simulate delivery movement every 5s ---
@@ -244,11 +269,9 @@ setInterval(() => {
     if (!d) return;
     if (d.status === '✅ Order Delivered!') return;
 
-    // random small move
     d.location.lat += (Math.random() - 0.5) * 0.001;
     d.location.lng += (Math.random() - 0.5) * 0.001;
 
-    // randomly mark delivered
     if (Math.random() > 0.92) {
       d.status = '✅ Order Delivered!';
     } else {
@@ -263,6 +286,7 @@ setInterval(() => {
 server.listen(PORT, () => {
   console.log(`✅ Zencuro server running on ${BASE_URL}`);
 });
+
 
 
 
