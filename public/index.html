@@ -20,12 +20,14 @@
     .success { margin-top:8px; color:#0a7f3f; font-weight:600; display:none; }
     .error { margin-top:8px; color:#b00020; font-weight:600; display:none; }
     footer { text-align:center; color:#666; padding:20px 0 40px; }
+    .cta { display:inline-block; margin-top:12px; background:#16a34a; }
   </style>
 </head>
 <body>
 <header>
   <h1>Welcome to Zencuro</h1>
   <p>Online Booking • Consultation • Delivery • Lab Tests</p>
+  <a href="/consult"><button class="cta">Start Live Consultation (Video/Audio + Chat)</button></a>
 </header>
 
 <main>
@@ -59,6 +61,7 @@
 
   <section id="consultation" class="card">
     <h2>Consultation</h2>
+    <a href="/consult"><button class="cta">Start Live Consultation</button></a>
     <form id="consultForm">
       <div class="row">
         <div><label>Name</label><input name="name" required></div>
@@ -188,3 +191,4 @@
 </script>
 </body>
 </html>
+
