@@ -1,17 +1,27 @@
 {
   "name": "zencuro",
-  "version": "1.0.0",
-  "description": "Zencuro app with Stripe integration",
-  "main": "src/server.js",
+  "version": "2.0.0",
+  "description": "Zencuro video consultation + eRx + pharmacy ordering",
+  "main": "server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "stripe": "^12.18.0",
-    "dotenv": "^16.3.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.5",
+    "stripe": "^14.23.0",
+    "pg": "^8.11.5"
   }
 }
+
 
 
 
