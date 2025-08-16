@@ -1,18 +1,19 @@
 {
   "name": "zencuro",
   "version": "1.0.0",
-  "description": "Zencuro online care",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5"
-  },
-  "engines": {
-    "node": ">=18"
+    "express": "^4.18.2",
+    "multer": "^1.4.5",
+    "socket.io": "^4.7.2",
+    "stripe": "^12.5.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5"
   }
 }
+
 
 
