@@ -1,94 +1,91 @@
-const express = require('express');
-const path = require('path');
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
+const io = new Server(server);
 
-// Parse JSON bodies from requests
+// --- API + static (keep your forms working) ---
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
-// Serve static files from the "public" folder
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Route for root ("/") to serve index.html
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Root & SPA routes
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+app.get(["/booking", "/consultation", "/medicines", "/tests"], (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+// Live consult page
+app.get("/consult", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "call.html"));
 });
 
-// Extra frontend routes → always return index.html
-app.get(['/booking', '/consultation', '/medicines', '/tests'], (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// ---- Minimal in-memory storage for your existing forms ----
+const db = { bookings: [], consultations: [], deliveries: [], tests: [] };
 
-// In-memory database (resets each time server restarts)
-const db = {
-  bookings: [],
-  consultations: [],
-  deliveries: [],
-  tests: []
-};
-
-// API for bookings
-app.post('/api/bookings', (req, res) => {
+app.post("/api/bookings", (req, res) => {
   const { name, phone, email = null, dateTime, serviceType, notes = null } = req.body;
-  if (!name || !phone || !dateTime || !serviceType) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  const id = db.bookings.length + 1;
-  const createdAt = new Date().toISOString();
+  if (!name || !phone || !dateTime || !serviceType) return res.status(400).json({ error: "Missing fields" });
+  const id = db.bookings.length + 1, createdAt = new Date().toISOString();
   db.bookings.push({ id, name, phone, email, dateTime, serviceType, notes, createdAt });
   res.json({ success: true, id, createdAt });
 });
 
-// API for consultations
-app.post('/api/consultations', (req, res) => {
+app.post("/api/consultations", (req, res) => {
   const { name, phone, email = null, mode, preferredTime = null, notes = null } = req.body;
-  if (!name || !phone || !mode) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  const id = db.consultations.length + 1;
-  const createdAt = new Date().toISOString();
+  if (!name || !phone || !mode) return res.status(400).json({ error: "Missing fields" });
+  const id = db.consultations.length + 1, createdAt = new Date().toISOString();
   db.consultations.push({ id, name, phone, email, mode, preferredTime, notes, createdAt });
   res.json({ success: true, id, createdAt });
 });
 
-// API for deliveries
-app.post('/api/deliveries', (req, res) => {
+app.post("/api/deliveries", (req, res) => {
   const { name, phone, address, items, notes = null } = req.body;
-  if (!name || !phone || !address || !items) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  const id = db.deliveries.length + 1;
-  const createdAt = new Date().toISOString();
+  if (!name || !phone || !address || !items) return res.status(400).json({ error: "Missing fields" });
+  const id = db.deliveries.length + 1, createdAt = new Date().toISOString();
   db.deliveries.push({ id, name, phone, address, items, notes, createdAt });
   res.json({ success: true, id, createdAt });
 });
 
-// API for tests
-app.post('/api/tests', (req, res) => {
+app.post("/api/tests", (req, res) => {
   const { name, phone, email = null, testType, preferredDate = null, notes = null } = req.body;
-  if (!name || !phone || !testType) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  const id = db.tests.length + 1;
-  const createdAt = new Date().toISOString();
+  if (!name || !phone || !testType) return res.status(400).json({ error: "Missing fields" });
+  const id = db.tests.length + 1, createdAt = new Date().toISOString();
   db.tests.push({ id, name, phone, email, testType, preferredDate, notes, createdAt });
   res.json({ success: true, id, createdAt });
 });
 
-// Admin route (view all data)
-const ADMIN_KEY = process.env.ADMIN_KEY || 'changeme';
-app.get('/admin', (req, res) => {
-  if (req.query.key !== ADMIN_KEY) {
-    return res.status(401).send('Unauthorized');
-  }
-  res.send(`<pre>${JSON.stringify(db, null, 2)}</pre>`);
+// ---- Socket.IO signaling + chat for WebRTC ----
+io.on("connection", (socket) => {
+  console.log("Socket connected:", socket.id);
+
+  socket.on("join-room", (roomId) => {
+    socket.join(roomId);
+    socket.to(roomId).emit("user-joined", socket.id);
+
+    socket.on("signal", (data) => {
+      // { to, signal }
+      io.to(data.to).emit("signal", { from: socket.id, signal: data.signal });
+    });
+
+    socket.on("chat-message", (message) => {
+      io.to(roomId).emit("chat-message", { user: socket.id, message, at: Date.now() });
+    });
+
+    socket.on("disconnect", () => {
+      socket.to(roomId).emit("user-left", socket.id);
+    });
+  });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`✅ Zencuro server running on port ${PORT}`);
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`✅ Zencuro running on ${PORT}`);
 });
+
 
 
 
