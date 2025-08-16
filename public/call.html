@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Zencuro — Live Consultation</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin:0; background:#f7f9fc; color:#222; }
+    header { background:#0a66c2; color:#fff; padding:16px; text-align:center; }
+    main { max-width:1000px; margin: 16px auto; padding: 0 12px 40px; }
+    .grid { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+    video { width:480px; max-width:100%; background:#000; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+    .panel { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:12px; }
+    #chat { height:220px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:10px; padding:8px; }
+    #chat p { margin:4px 0; }
+    .controls { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    button { padding:10px 14px; border:0; border-radius:10px; background:#0a66c2; color:#fff; font-weight:600; cursor:pointer; }
+    .muted { background:#444; }
+    .warn { background:#b00020; }
+    .link { display:inline-block; margin:8px 0; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Live Consultation</h1>
+  <a class="link" href="/">← Back to Home</a>
+</header>
+
+<main>
+  <div class="grid">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+
+  <div class="panel" style="margin-top:12px;">
+    <div class="controls">
+      <button id="toggleCam">Toggle Camera</button>
+      <button id="toggleMic">Toggle Mic</button>
+      <button id="endCall" class="warn">End Call</button>
+    </div>
+
+    <h3>Chat</h3>
+    <div id="chat"></div>
+    <div class="controls">
+      <input id="msgBox" placeholder="Type message…" style="flex:1; padding:10px; border:1px solid #d9e2ec; border-radius:10px;" />
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const roomId = "consult-room"; // simple: single room
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  const localVideo = document.getElementById("localVideo");
+  const remoteVideo = document.getElementById("remoteVideo");
+  const chatDiv = document.getElementById("chat");
+  const sendBtn = document.getElementById("sendBtn");
+  const msgBox = document.getElementById("msgBox");
+  const toggleCam = document.getElementById("toggleCam");
+  const toggleMic = document.getElementById("toggleMic");
+  const endCall = document.getElementById("endCall");
+
+  let remoteUser = null;
+  let localStream = null;
+
+  function log(msg) {
+    const p = document.createElement("p");
+    p.textContent = msg;
+    chatDiv.appendChild(p);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+  }
+
+  // Get media
+  navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(stream => {
+      localStream = stream;
+      localVideo.srcObject = stream;
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    })
+    .catch(err => {
+      alert("Camera/Mic permission is needed. " + err.message);
+    });
+
+  // Remote stream
+  pc.ontrack = (e) => {
+    remoteVideo.srcObject = e.streams[0];
+  };
+
+  // ICE
+  pc.onicecandidate = (e) => {
+    if (e.candidate && remoteUser) {
+      socket.emit("signal", { to: remoteUser, signal: { candidate: e.candidate } });
+    }
+  };
+
+  // Join room
+  socket.emit("join-room", roomId);
+
+  socket.on("user-joined", async (id) => {
+    remoteUser = id;
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit("signal", { to: id, signal: offer });
+  });
+
+  socket.on("signal", async ({ from, signal }) => {
+    remoteUser = from;
+    if (signal.sdp) {
+      await pc.setRemoteDescription(signal);
+      if (signal.type === "offer") {
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("signal", { to: from, signal: answer });
+      }
+    } else if (signal.candidate) {
+      try { await pc.addIceCandidate(signal.candidate); } catch(e) { console.error(e); }
+    }
+  });
+
+  socket.on("user-left", () => {
+    log("Other user left.");
+    if (remoteVideo.srcObject) {
+      remoteVideo.srcObject.getTracks().forEach(t => t.stop());
+      remoteVideo.srcObject = null;
+    }
+  });
+
+  // Chat
+  sendBtn.onclick = () => {
+    const msg = msgBox.value.trim();
+    if (!msg) return;
+    socket.emit("chat-message", msg);
+    msgBox.value = "";
+  };
+  socket.on("chat-message", ({ user, message }) => {
+    log(`${user.slice(0,6)}: ${message}`);
+  });
+
+  // Controls
+  toggleCam.onclick = () => {
+    const videoTrack = localStream?.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      toggleCam.classList.toggle("muted", !videoTrack.enabled);
+    }
+  };
+
+  toggleMic.onclick = () => {
+    const audioTrack = localStream?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      toggleMic.classList.toggle("muted", !audioTrack.enabled);
+    }
+  };
+
+  endCall.onclick = () => {
+    pc.getSenders().forEach(s => s.track && s.track.stop());
+    localStream?.getTracks().forEach(t => t.stop());
+    window.location.href = "/";
+  };
+</script>
+</body>
+</html>
