@@ -8,5 +8,12 @@ services:
     envVars:
       - key: ADMIN_KEY
         value: Tejas@123
+      - key: STRIPE_SECRET_KEY
+        sync: false     # set in Render dashboard
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false     # set in Render dashboard
+      - key: BASE_URL
+        value: https://zencuro.onrender.com
+        
         
         
