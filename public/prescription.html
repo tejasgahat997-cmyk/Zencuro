@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Prescription</title>
+</head>
+<body>
+  <h2>Your Prescription</h2>
+  <div id="pres"></div>
+  <button onclick="loadPharmacies()">Order Medicine</button>
+
+  <div id="pharmacyList"></div>
+
+  <script>
+    async function loadPrescription() {
+      const res = await fetch("/prescription");
+      const data = await res.json();
+      document.getElementById("pres").innerText = data.text || "No prescription yet";
+    }
+
+    async function loadPharmacies() {
+      const res = await fetch("/pharmacies");
+      const list = await res.json();
+      document.getElementById("pharmacyList").innerHTML = list.map(
+        p => `<button onclick="checkout('${p.name}')">${p.name} - ${p.location}</button>`
+      ).join("<br>");
+    }
+
+    async function checkout(pharmacy) {
+      const res = await fetch("/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ price_data: { currency: "usd", product_data: { name: "Medicine Pack" }, unit_amount: 2000 }, quantity: 1 }]
+        })
+      });
+      const data = await res.json();
+      window.location = data.url;
+    }
+
+    loadPrescription();
+  </script>
+</body>
+</html>
