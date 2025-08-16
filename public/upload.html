@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload Reports</title>
+</head>
+<body>
+  <h2>Upload Test Reports</h2>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="document" />
+    <button type="submit">Upload</button>
+  </form>
+  <div id="uploaded"></div>
+
+  <script>
+    document.getElementById("uploadForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch("/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      document.getElementById("uploaded").innerHTML =
+        `<p>Uploaded: <a href="${data.file}" target="_blank">${data.file}</a></p>`;
+    };
+  </script>
+</body>
+</html>
