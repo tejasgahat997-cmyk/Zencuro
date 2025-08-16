@@ -1,90 +1,75 @@
 const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
-
 const app = express();
+const http = require("http");
 const server = http.createServer(app);
+const { Server } = require("socket.io");
 const io = new Server(server);
+const multer = require("multer");
+const path = require("path");
+const bodyParser = require("body-parser");
+const stripe = require("stripe")("sk_test_yourStripeKeyHere"); // replace with your key
+const cors = require("cors");
 
-// --- API + static (keep your forms working) ---
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static("public"));
+app.use("/uploads", express.static("uploads"));
 
-// Root & SPA routes
-app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// 📂 Upload storage config
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
-app.get(["/booking", "/consultation", "/medicines", "/tests"], (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-// Live consult page
-app.get("/consult", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "call.html"));
-});
+const upload = multer({ storage });
 
-// ---- Minimal in-memory storage for your existing forms ----
-const db = { bookings: [], consultations: [], deliveries: [], tests: [] };
-
-app.post("/api/bookings", (req, res) => {
-  const { name, phone, email = null, dateTime, serviceType, notes = null } = req.body;
-  if (!name || !phone || !dateTime || !serviceType) return res.status(400).json({ error: "Missing fields" });
-  const id = db.bookings.length + 1, createdAt = new Date().toISOString();
-  db.bookings.push({ id, name, phone, email, dateTime, serviceType, notes, createdAt });
-  res.json({ success: true, id, createdAt });
+// 📂 Patient uploads document
+app.post("/upload", upload.single("document"), (req, res) => {
+  res.json({ file: `/uploads/${req.file.filename}` });
 });
 
-app.post("/api/consultations", (req, res) => {
-  const { name, phone, email = null, mode, preferredTime = null, notes = null } = req.body;
-  if (!name || !phone || !mode) return res.status(400).json({ error: "Missing fields" });
-  const id = db.consultations.length + 1, createdAt = new Date().toISOString();
-  db.consultations.push({ id, name, phone, email, mode, preferredTime, notes, createdAt });
-  res.json({ success: true, id, createdAt });
+// 📄 Doctor writes prescription
+let prescription = "";
+app.post("/prescription", (req, res) => {
+  prescription = req.body.text;
+  res.json({ success: true });
+});
+app.get("/prescription", (req, res) => {
+  res.json({ text: prescription });
 });
 
-app.post("/api/deliveries", (req, res) => {
-  const { name, phone, address, items, notes = null } = req.body;
-  if (!name || !phone || !address || !items) return res.status(400).json({ error: "Missing fields" });
-  const id = db.deliveries.length + 1, createdAt = new Date().toISOString();
-  db.deliveries.push({ id, name, phone, address, items, notes, createdAt });
-  res.json({ success: true, id, createdAt });
-});
+// 🏥 Pharmacy list
+const pharmacies = [
+  { id: 1, name: "City Pharmacy", location: "Main Road" },
+  { id: 2, name: "HealthPlus", location: "Market Street" },
+  { id: 3, name: "MediCare", location: "Near Bus Stand" }
+];
+app.get("/pharmacies", (req, res) => res.json(pharmacies));
 
-app.post("/api/tests", (req, res) => {
-  const { name, phone, email = null, testType, preferredDate = null, notes = null } = req.body;
-  if (!name || !phone || !testType) return res.status(400).json({ error: "Missing fields" });
-  const id = db.tests.length + 1, createdAt = new Date().toISOString();
-  db.tests.push({ id, name, phone, email, testType, preferredDate, notes, createdAt });
-  res.json({ success: true, id, createdAt });
-});
-
-// ---- Socket.IO signaling + chat for WebRTC ----
-io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id);
-
-  socket.on("join-room", (roomId) => {
-    socket.join(roomId);
-    socket.to(roomId).emit("user-joined", socket.id);
-
-    socket.on("signal", (data) => {
-      // { to, signal }
-      io.to(data.to).emit("signal", { from: socket.id, signal: data.signal });
-    });
-
-    socket.on("chat-message", (message) => {
-      io.to(roomId).emit("chat-message", { user: socket.id, message, at: Date.now() });
-    });
-
-    socket.on("disconnect", () => {
-      socket.to(roomId).emit("user-left", socket.id);
-    });
+// 💳 Payment (Stripe)
+app.post("/checkout", async (req, res) => {
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: req.body.items,
+    mode: "payment",
+    success_url: "http://localhost:3000/success",
+    cancel_url: "http://localhost:3000/cancel"
   });
+  res.json({ url: session.url });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`✅ Zencuro running on ${PORT}`);
+// 📞 Socket for chat (already video call in place)
+io.on("connection", socket => {
+  console.log("User connected");
+
+  socket.on("chatMessage", msg => {
+    io.emit("chatMessage", msg);
+  });
+
+  socket.on("disconnect", () => console.log("User disconnected"));
 });
+
+server.listen(3000, () => console.log("Server running on port 3000"));
+
 
 
 
