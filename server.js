@@ -7,68 +7,54 @@ const io = new Server(server);
 const multer = require("multer");
 const path = require("path");
 const bodyParser = require("body-parser");
-const stripe = require("stripe")("sk_test_yourStripeKeyHere"); // replace with your key
 const cors = require("cors");
+require("dotenv").config();
+
+// Stripe setup
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static("public"));
-app.use("/uploads", express.static("uploads"));
 
-// 📂 Upload storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
-});
-const upload = multer({ storage });
+// ✅ Stripe Checkout Route
+app.post("/create-checkout-session", async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Sample Product", // change later to Zencuro products
+            },
+            unit_amount: 2000, // $20 in cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: "https://yourdomain.com/success",
+      cancel_url: "https://yourdomain.com/cancel",
+    });
 
-// 📂 Patient uploads document
-app.post("/upload", upload.single("document"), (req, res) => {
-  res.json({ file: `/uploads/${req.file.filename}` });
-});
-
-// 📄 Doctor writes prescription
-let prescription = "";
-app.post("/prescription", (req, res) => {
-  prescription = req.body.text;
-  res.json({ success: true });
-});
-app.get("/prescription", (req, res) => {
-  res.json({ text: prescription });
-});
-
-// 🏥 Pharmacy list
-const pharmacies = [
-  { id: 1, name: "City Pharmacy", location: "Main Road" },
-  { id: 2, name: "HealthPlus", location: "Market Street" },
-  { id: 3, name: "MediCare", location: "Near Bus Stand" }
-];
-app.get("/pharmacies", (req, res) => res.json(pharmacies));
-
-// 💳 Payment (Stripe)
-app.post("/checkout", async (req, res) => {
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    line_items: req.body.items,
-    mode: "payment",
-    success_url: "http://localhost:3000/success",
-    cancel_url: "http://localhost:3000/cancel"
-  });
-  res.json({ url: session.url });
+    res.json({ id: session.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 📞 Socket for chat (already video call in place)
-io.on("connection", socket => {
-  console.log("User connected");
-
-  socket.on("chatMessage", msg => {
-    io.emit("chatMessage", msg);
-  });
-
-  socket.on("disconnect", () => console.log("User disconnected"));
+// ✅ Default route
+app.get("/", (req, res) => {
+  res.send("Zencuro backend running...");
 });
 
-server.listen(3000, () => console.log("Server running on port 3000"));
+// ✅ Start server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
 
 
 
