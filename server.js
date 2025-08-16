@@ -15,7 +15,7 @@ app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Routes for frontend pages (so they don’t give 404)
+// Extra frontend routes → always return index.html
 app.get(['/booking', '/consultation', '/medicines', '/tests'], (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -76,7 +76,7 @@ app.post('/api/tests', (req, res) => {
   res.json({ success: true, id, createdAt });
 });
 
-// Admin route
+// Admin route (view all data)
 const ADMIN_KEY = process.env.ADMIN_KEY || 'changeme';
 app.get('/admin', (req, res) => {
   if (req.query.key !== ADMIN_KEY) {
@@ -89,6 +89,7 @@ app.get('/admin', (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Zencuro server running on port ${PORT}`);
 });
+
 
 
 
