@@ -1,21 +1,18 @@
 {
   "name": "zencuro",
   "version": "1.0.0",
-  "description": "Zencuro booking system",
+  "description": "Zencuro online care",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   },
   "engines": {
     "node": ">=18"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "express-rate-limit": "^7.4.0",
-    "helmet": "^7.1.0",
-    "pg": "^8.11.5"
   }
 }
+
 
