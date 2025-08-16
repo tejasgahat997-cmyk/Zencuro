@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Doctor Prescription</title>
+</head>
+<body>
+  <h2>Write Prescription</h2>
+  <textarea id="prescription"></textarea>
+  <button onclick="savePrescription()">Save</button>
+
+  <script>
+    async function savePrescription() {
+      const text = document.getElementById("prescription").value;
+      await fetch("/prescription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      alert("Prescription saved!");
+    }
+  </script>
+</body>
+</html>
